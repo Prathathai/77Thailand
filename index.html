@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thailand Explorer 77 - สำรวจประเทศไทย 77 จังหวัด</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap');
+    body { font-family: 'Kanit', sans-serif; }
+    
+    /* Interactive Map Styles */
+    .province-path {
+      fill: #CBD5E1; /* slate-300 default */
+      stroke: #FFFFFF;
+      stroke-width: 1.5;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .province-path:hover {
+      fill: #3B82F6; /* blue-500 hover */
+      filter: drop-shadow(0px 0px 6px rgba(59, 130, 246, 0.6));
+    }
+    .province-path.explored {
+      fill: #22C55E; /* green-500 explored */
+    }
+    .province-path.explored:hover {
+      fill: #16A34A; /* green-600 */
+    }
+    .province-path.selected {
+      fill: #F59E0B; /* amber-500 selected */
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Header / Navigation Bar -->
+  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-2 rounded-xl text-xl"><i class="fa-solid fa-map-location-dot"></i></div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">Thailand Explorer</h1>
+          <p class="text-xs text-slate-400">สำรวจประเทศไทย 77 จังหวัด</p>
+        </div>
+      </div>
+      
+      <!-- Player Stats -->
+      <div class="flex items-center gap-4 text-sm font-semibold">
+        <div class="bg-slate-700/60 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-600">
+          <i class="fa-solid fa-coins text-amber-400"></i>
+          <span id="player-score">0</span> XP
+        </div>
+        <div class="bg-slate-700/60 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-600">
+          <i class="fa-solid fa-compass text-emerald-400"></i>
+          <span id="player-progress">0</span>/77
+        </div>
+        <button onclick="toggleCollectionModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition text-xs md:text-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-book-open"></i> สมุดสะสม
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto w-full flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Interactive Map -->
+    <section class="lg:col-span-7 bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 flex flex-col items-center justify-center relative min-h-[500px]">
+      <div class="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur px-3 py-2 rounded-lg text-xs border border-slate-700">
+        <p class="text-slate-300 font-medium mb-1"><i class="fa-solid fa-circle-info text-blue-400"></i> สัญลักษณ์สีแผนที่</p>
+        <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded bg-slate-300"></span> ยังไม่สำรวจ</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-emerald-500"></span> สำรวจแล้ว</div>
+      </div>
+
+      <!-- Interactive Thailand SVG Map -->
+      <div class="w-full h-full max-w-md flex items-center justify-center">
+        <svg id="thailand-map" viewBox="0 0 500 800" class="w-full h-auto max-h-[650px]">
+          <!-- Simplified Province Paths (ตัวอย่าง Vector พิกัดจำลองของจังหวัด) -->
+          <!-- เชียงใหม่ (TH-50) -->
+          <path id="TH-50" data-id="TH-50" class="province-path" d="M 160 100 L 210 90 L 220 150 L 170 170 L 150 130 Z" />
+          <!-- ลพบุรี (TH-16) -->
+          <path id="TH-16" data-id="TH-16" class="province-path" d="M 230 310 L 270 300 L 285 350 L 240 360 L 225 330 Z" />
+          <!-- ภูเก็ต (TH-83) -->
+          <path id="TH-83" data-id="TH-83" class="province-path" d="M 135 680 L 145 680 L 143 710 L 133 705 Z" />
+          
+          <!-- Province Text Labels on Map -->
+          <text x="180" y="130" font-size="12" fill="#0F172A" font-weight="bold" pointer-events="none">เชียงใหม่</text>
+          <text x="245" y="335" font-size="12" fill="#0F172A" font-weight="bold" pointer-events="none">ลพบุรี</text>
+          <text x="110" y="695" font-size="12" fill="#0F172A" font-weight="bold" pointer-events="none">ภูเก็ต</text>
+        </svg>
+      </div>
+      
+      <p class="text-xs text-slate-400 mt-2 text-center">* หมายเหตุ: SVG นี้แสดงตัวอย่างพื้นที่ตำแหน่งจังหวัด เชียงใหม่, ลพบุรี, และภูเก็ต</p>
+    </section>
+
+    <!-- Right Column: Province Info & Mission Panel -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      
+      <!-- Info Card Component -->
+      <div id="province-card" class="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex-1 flex flex-col justify-between">
+        <div id="card-placeholder" class="text-center my-auto py-12 text-slate-400">
+          <i class="fa-solid fa-hand-pointer text-4xl mb-3 text-slate-500 animate-bounce"></i>
+          <p class="text-lg font-medium">คลิกเลือกจังหวัดบนแผนที่</p>
+          <p class="text-xs text-slate-500">เพื่อเปิดข้อมูลจริงและเริ่มทำภารกิจสำรวจ</p>
+        </div>
+
+        <div id="card-content" class="hidden flex-col h-full justify-between gap-4">
+          <div>
+            <!-- Province Header -->
+            <div class="flex justify-between items-start border-b border-slate-700 pb-3 mb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 id="p-name" class="text-2xl font-bold text-white">ชื่อจังหวัด</h2>
+                  <span id="p-status-badge" class="bg-slate-700 text-slate-300 text-xs px-2.5 py-0.5 rounded-full">ยังไม่สำรวจ</span>
+                </div>
+                <p id="p-tagline" class="text-sm text-amber-400 italic font-light mt-0.5">คำขวัญ/สโลแกน</p>
+              </div>
+              <span id="p-region" class="bg-blue-900/50 text-blue-300 text-xs px-2.5 py-1 rounded-lg border border-blue-700/50">ภาค</span>
+            </div>
+
+            <!-- Real Fact Grid -->
+            <div class="grid grid-cols-2 gap-2.5 text-xs">
+              <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+                <p class="text-slate-400 mb-0.5"><i class="fa-solid fa-users text-blue-400"></i> ประชากร</p>
+                <p id="p-pop" class="font-semibold text-slate-200">0 คน</p>
+              </div>
+              <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+                <p class="text-slate-400 mb-0.5"><i class="fa-solid fa-wheat-awn text-emerald-400"></i> การเกษตรหลัก</p>
+                <p id="p-agri" class="font-semibold text-slate-200">-</p>
+              </div>
+              <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+                <p class="text-slate-400 mb-0.5"><i class="fa-solid fa-mountain text-amber-400"></i> ภูมิประเทศ</p>
+                <p id="p-geo" class="font-semibold text-slate-200">-</p>
+              </div>
+              <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+                <p class="text-slate-400 mb-0.5"><i class="fa-solid fa-utensils text-rose-400"></i> อาหาร/ของดี</p>
+                <p id="p-food" class="font-semibold text-slate-200">-</p>
+              </div>
+            </div>
+
+            <!-- Landmarks -->
+            <div class="mt-3 bg-slate-900/40 p-2.5 rounded-xl border border-slate-700/30 text-xs">
+              <p class="text-slate-400 mb-1"><i class="fa-solid fa-location-dot text-red-400"></i> สถานที่สำคัญ:</p>
+              <p id="p-landmarks" class="text-slate-300">-</p>
+            </div>
+          </div>
+
+          <!-- Mission Box -->
+          <div class="bg-slate-900 border border-blue-900/40 rounded-xl p-4 mt-2">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-sm font-semibold text-blue-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-bullseye"></i> ภารกิจประจำจังหวัด
+              </h3>
+              <span class="text-xs text-amber-400 font-bold">+100 XP</span>
+            </div>
+            
+            <p id="m-question" class="text-xs md:text-sm text-slate-200 mb-3 font-medium">คำถามภารกิจ...</p>
+
+            <div id="m-options" class="space-y-2">
+              <!-- Dynamic Choice Buttons -->
+            </div>
+
+            <div id="m-feedback" class="hidden mt-3 p-2.5 rounded-lg text-xs font-semibold text-center"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Collection & Achievements Modal -->
+  <div id="collection-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+        <h2 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-book-bookmark text-amber-400"></i> สมุดสะสมประเทศไทย (77 จังหวัด)
+        </h2>
+        <button onclick="toggleCollectionModal()" class="text-slate-400 hover:text-white text-xl px-2"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-4 overflow-y-auto space-y-6">
+        
+        <!-- Achievements Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wider">Achievements (ความสำเร็จ)</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div id="ach-1" class="bg-slate-900/60 p-3 rounded-xl border border-slate-700 opacity-50 flex flex-col items-center text-center">
+              <i class="fa-solid fa-award text-2xl text-amber-400 mb-1"></i>
+              <p class="text-xs font-bold">นักสำรวจมือใหม่</p>
+              <p class="text-[10px] text-slate-400">สำรวจครบ 1 จังหวัด</p>
+            </div>
+            <div id="ach-2" class="bg-slate-900/60 p-3 rounded-xl border border-slate-700 opacity-50 flex flex-col items-center text-center">
+              <i class="fa-solid fa-compass text-2xl text-blue-400 mb-1"></i>
+              <p class="text-xs font-bold">นักเดินทางสิบย่าน</p>
+              <p class="text-[10px] text-slate-400">สำรวจครบ 10 จังหวัด</p>
+            </div>
+            <div id="ach-3" class="bg-slate-900/60 p-3 rounded-xl border border-slate-700 opacity-50 flex flex-col items-center text-center">
+              <i class="fa-solid fa-map text-2xl text-emerald-400 mb-1"></i>
+              <p class="text-xs font-bold">รอบรู้ประเทศไทย</p>
+              <p class="text-[10px] text-slate-400">สำรวจครบ 30 จังหวัด</p>
+            </div>
+            <div id="ach-4" class="bg-slate-900/60 p-3 rounded-xl border border-slate-700 opacity-50 flex flex-col items-center text-center">
+              <i class="fa-solid fa-crown text-2xl text-purple-400 mb-1"></i>
+              <p class="text-xs font-bold">Thailand Master</p>
+              <p class="text-[10px] text-slate-400">สำรวจครบ 77 จังหวัด</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 77 Grid Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wider">รายการ 77 จังหวัด</h3>
+          <div id="province-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            <!-- Dynamic 77 Grid Boxes generated via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Logics -->
+  <script>
+    // 1. REAL PROVINCES DATABASE (ข้อมูลจริงย่อตัวอย่าง 3 จังหวัด + โครงสร้างรองรับ 77 จังหวัด)
+    const provincesData = {
+      "TH-16": {
+        id: "TH-16",
+        name: "ลพบุรี",
+        region: "ภาคกลาง",
+        tagline: "เมืองประวัติศาสตร์ วังนารายณ์คู่บ้าน ศาลพระกาฬคู่เมือง",
+        population: "ประมาณ 730,000 คน",
+        agri: "ข้าว, มันสำปะหลัง, ข้าวโพดเลี้ยงสัตว์, สุกร, โคนม",
+        geo: "ที่ราบลุ่มทางตะวันตก และเนินเขาทางทิศตะวันออก",
+        food: "ไข่เค็มดินสอพอง, กุ้งแม่น้ำ",
+        landmarks: "พระปรางค์สามยอด, พระนารายณ์ราชนิเวศน์, เขื่อนป่าสักชลสิทธิ์",
+        question: "สถานที่ใดคือโบราณสถานสำคัญสัญลักษณ์ของจังหวัดลพบุรี?",
+        options: ["พระปรางค์สามยอด", "วัดพระศรีรัตนศาสดาราม", "ปราสาทหินพิมาย", "อุทยานแห่งชาติดอยอินทนนท์"],
+        answer: 0
+      },
+      "TH-50": {
+        id: "TH-50",
+        name: "เชียงใหม่",
+        region: "ภาคเหนือ",
+        tagline: "ดอยสุเทพเป็นศรี ประเพณีงดงาม นครแห่งวัฒนธรรมล้านนา",
+        population: "ประมาณ 1,790,000 คน",
+        agri: "ลำไย, ลิ้นจี่, ชา, กาแฟอาราบิก้า, สตรอว์เบอร์รี",
+        geo: "ภูเขาสูงสลับซับซ้อน ป่าไม้หนาแน่น และที่ราบแอ่งกระทะ",
+        food: "ไส้อั่ว, น้ำพริกหนุ่ม, ข้าวซอย, แคบหมู",
+        landmarks: "ดอยอินทนนท์, วัดพระธาตุดอยสุเทพ, ประตูท่าแพ",
+        question: "ยอดเขาสูงที่สุดในประเทศไทยตั้งอยู่ในจังหวัดเชียงใหม่ คือสถานที่ใด?",
+        options: ["ดอยอ่างขาง", "ดอยสุเทพ", "ดอยอินทนนท์", "ดอยเชียงดาว"],
+        answer: 2
+      },
+      "TH-83": {
+        id: "TH-83",
+        name: "ภูเก็ต",
+        region: "ภาคใต้",
+        tagline: "ไข่มุกอันดามัน สวรรค์เมืองใต้ หาดทรายสีทอง",
+        population: "ประมาณ 410,000 คน",
+        agri: "การประมงทะเล, ยางพารา, มะพร้าว, เม็ดมะม่วงหิมพานต์",
+        geo: "เป็นเกาะขนาดใหญ่ที่สุดในไทย มีทิวเขาทางทิศนวดิตถ์และหาดทราย",
+        food: "หมูฮ้อง, หมี่ฮกเกี้ยน, โอวต้าว, น้าชุบหยำ",
+        landmarks: "แหลมพรหมเทพ, ย่านเมืองเก่าภูเก็ต (Old Town), วัดฉลอง",
+        question: "จุดชมพระอาทิตย์ตกดินที่มีชื่อเสียงระดับโลกในภูเก็ตคือที่ใด?",
+        options: ["หาดป่าตอง", "แหลมพรหมเทพ", "หาดกะรน", "เกาะราชา"],
+        answer: 1
+      }
+    };
+
+    // Global Game State
+    let gameState = {
+      score: 0,
+      exploredCount: 0,
+      exploredProvinces: new Set(), // เก็บ ID จังหวัดที่เล่นผ่านแล้ว
+      selectedProvinceId: null
+    };
+
+    // Initialize Game on Load
+    document.addEventListener("DOMContentLoaded", () => {
+      setupMapInteractions();
+      renderCollectionGrid();
+    });
+
+    // 2. MAP & UI EVENT HANDLERS
+    function setupMapInteractions() {
+      const paths = document.querySelectorAll(".province-path");
+      paths.forEach(path => {
+        path.addEventListener("click", (e) => {
+          const provId = e.target.getAttribute("data-id");
+          selectProvince(provId);
+        });
+      });
+    }
+
+    function selectProvince(provId) {
+      // Remove selected highlight from previous
+      if (gameState.selectedProvinceId) {
+        const prevPath = document.getElementById(gameState.selectedProvinceId);
+        if (prevPath && !gameState.exploredProvinces.has(gameState.selectedProvinceId)) {
+          prevPath.classList.remove("selected");
+        }
+      }
+
+      gameState.selectedProvinceId = provId;
+      const currentPath = document.getElementById(provId);
+      if (currentPath && !gameState.exploredProvinces.has(provId)) {
+        currentPath.classList.add("selected");
+      }
+
+      const data = provincesData[provId];
+      if (data) {
+        renderProvinceCard(data);
+      } else {
+        alert("กำลังอัปเดตข้อมูลจังหวัดนี้เร็วๆ นี้!");
+      }
+    }
+
+    // 3. RENDER PROVINCE CARD & MISSION
+    function renderProvinceCard(data) {
+      document.getElementById("card-placeholder").classList.add("hidden");
+      const cardContent = document.getElementById("card-content");
+      cardContent.classList.remove("hidden");
+      cardContent.classList.add("flex");
+
+      // Update Info Fields
+      document.getElementById("p-name").innerText = data.name;
+      document.getElementById("p-tagline").innerText = `"${data.tagline}"`;
+      document.getElementById("p-region").innerText = data.region;
+      document.getElementById("p-pop").innerText = data.population;
+      document.getElementById("p-agri").innerText = data.agri;
+      document.getElementById("p-geo").innerText = data.geo;
+      document.getElementById("p-food").innerText = data.food;
+      document.getElementById("p-landmarks").innerText = data.landmarks;
+
+      // Status Badge
+      const isExplored = gameState.exploredProvinces.has(data.id);
+      const badge = document.getElementById("p-status-badge");
+      if (isExplored) {
+        badge.innerText = "สำรวจแล้ว";
+        badge.className = "bg-emerald-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold";
+      } else {
+        badge.innerText = "ยังไม่สำรวจ";
+        badge.className = "bg-slate-700 text-slate-300 text-xs px-2.5 py-0.5 rounded-full";
+      }
+
+      // Render Mission Questions & Options
+      document.getElementById("m-question").innerText = data.question;
+      const optionsContainer = document.getElementById("m-options");
+      const feedback = document.getElementById("m-feedback");
+      feedback.className = "hidden mt-3 p-2.5 rounded-lg text-xs font-semibold text-center";
+      optionsContainer.innerHTML = "";
+
+      data.options.forEach((optText, index) => {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2.5 rounded-lg text-xs transition flex justify-between items-center";
+        btn.innerText = `${index + 1}. ${optText}`;
+        
+        if (isExplored) {
+          btn.disabled = true;
+          btn.classList.add("opacity-60", "cursor-not-allowed");
+        } else {
+          btn.onclick = () => handleAnswer(data, index, feedback);
+        }
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    // 4. MISSION ANSWER EVALUATION
+    function handleAnswer(data, selectedIdx, feedbackEl) {
+      feedbackEl.classList.remove("hidden");
+      
+      if (selectedIdx === data.answer) {
+        // Correct Answer
+        feedbackEl.innerText = "🎉 ถูกต้อง! คุณได้รับ +100 XP และปลดล็อกจังหวัดนี้";
+        feedbackEl.classList.add("bg-emerald-900/80", "text-emerald-200", "border", "border-emerald-500");
+
+        if (!gameState.exploredProvinces.has(data.id)) {
+          gameState.exploredProvinces.add(data.id);
+          gameState.score += 100;
+          gameState.exploredCount = gameState.exploredProvinces.size;
+
+          // Update Map Styling
+          const path = document.getElementById(data.id);
+          if (path) {
+            path.classList.remove("selected");
+            path.classList.add("explored");
+          }
+
+          // Update Top Bar & Grid
+          updatePlayerStats();
+          renderCollectionGrid();
+          checkAchievements();
+          
+          // Re-render card status
+          document.getElementById("p-status-badge").innerText = "สำรวจแล้ว";
+          document.getElementById("p-status-badge").className = "bg-emerald-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold";
+        }
+      } else {
+        // Wrong Answer
+        feedbackEl.innerText = "❌ ยังไม่ถูกต้อง ลองใหม่อีกครั้ง!";
+        feedbackEl.classList.add("bg-rose-900/80", "text-rose-200", "border", "border-rose-500");
+      }
+    }
+
+    // 5. UPDATE PLAYER STATS & ACHIEVEMENTS
+    function updatePlayerStats() {
+      document.getElementById("player-score").innerText = gameState.score;
+      document.getElementById("player-progress").innerText = gameState.exploredCount;
+    }
+
+    function checkAchievements() {
+      const c = gameState.exploredCount;
+      if (c >= 1) document.getElementById("ach-1").classList.remove("opacity-50", "bg-slate-900/60");
+      if (c >= 10) document.getElementById("ach-2").classList.remove("opacity-50", "bg-slate-900/60");
+      if (c >= 30) document.getElementById("ach-3").classList.remove("opacity-50", "bg-slate-900/60");
+      if (c >= 77) document.getElementById("ach-4").classList.remove("opacity-50", "bg-slate-900/60");
+    }
+
+    // 6. RENDER 77 COLLECTION GRID
+    function renderCollectionGrid() {
+      const gridContainer = document.getElementById("province-grid");
+      gridContainer.innerHTML = "";
+
+      // สร้างกล่องตัวอย่างจำลองให้ครบ 77 ช่อง
+      for (let i = 1; i <= 77; i++) {
+        let provKey = i === 1 ? "TH-16" : i === 2 ? "TH-50" : i === 3 ? "TH-83" : null;
+        let pData = provKey ? provincesData[provKey] : null;
+        
+        const box = document.createElement("div");
+        const isExplored = provKey && gameState.exploredProvinces.has(provKey);
+
+        box.className = `p-2.5 rounded-xl border text-center flex flex-col items-center justify-center gap-1 transition ${
+          isExplored 
+            ? "bg-emerald-950/60 border-emerald-500/60 text-emerald-300" 
+            : "bg-slate-900/80 border-slate-700/60 text-slate-500"
+        }`;
+
+        box.innerHTML = `
+          <i class="fa-solid ${isExplored ? 'fa-circle-check text-emerald-400' : 'fa-map-pin text-slate-600'} text-base"></i>
+          <span class="text-[11px] font-medium leading-tight">${pData ? pData.name : `จังหวัด ${i}`}</span>
+        `;
+
+        if (provKey) {
+          box.classList.add("cursor-pointer", "hover:border-blue-400");
+          box.onclick = () => {
+            toggleCollectionModal();
+            selectProvince(provKey);
+          };
+        }
+
+        gridContainer.appendChild(box);
+      }
+    }
+
+    // Modal Control
+    function toggleCollectionModal() {
+      const modal = document.getElementById("collection-modal");
+      modal.classList.toggle("hidden");
+    }
+  </script>
+</body>
+</html>
